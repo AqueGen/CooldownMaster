@@ -1,0 +1,20 @@
+## Interface: 120001
+## Title: CooldownMaster
+## Notes: Unlimited profiles for the Blizzard Cooldown Manager with auto-switch and import/export.
+## Author: CooldownMaster
+## Version: 2.0.0
+## SavedVariables: CooldownMasterDB
+## IconTexture: Interface\Icons\spell_holy_avengingwrath
+## Category: Combat
+
+Libs/LibStub/LibStub.lua
+Libs/CallbackHandler-1.0/CallbackHandler-1.0.lua
+Libs/LibDataBroker-1.1/LibDataBroker-1.1.lua
+Libs/LibDBIcon-1.0/LibDBIcon-1.0.lua
+Libs/LibDeflate/LibDeflate.lua
+
+Core.lua
+ProfileStore.lua
+Serialization.lua
+Settings.lua
+UI.lua

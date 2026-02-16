@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:wago.io)",
+      "WebFetch(domain:data.wago.io)"
+    ]
+  }
+}
