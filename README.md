@@ -1,8 +1,8 @@
 # CooldownMaster
 
-[![CurseForge](https://img.shields.io/curseforge/dt/1464144?label=CurseForge&logo=curseforge&color=F16436)](https://www.curseforge.com/wow/addons/cooldownmaster)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![WoW Version](https://img.shields.io/badge/WoW-12.0.x-blue?logo=battle.net)](https://worldofwarcraft.blizzard.com)
+[![CurseForge](https://img.shields.io/badge/CurseForge-CooldownMaster-orange)](https://www.curseforge.com/wow/addons/cooldownmaster)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![WoW Version](https://img.shields.io/badge/WoW-12.0.1+-brightgreen)](https://worldofwarcraft.com)
 
 Unlimited profiles for the Blizzard Cooldown Manager with global template library, cross-character profiles, and full import/export.
 
