@@ -1,5 +1,9 @@
 # CooldownMaster
 
+[![CurseForge](https://img.shields.io/curseforge/dt/1464144?label=CurseForge&logo=curseforge&color=F16436)](https://www.curseforge.com/wow/addons/cooldownmaster)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![WoW Version](https://img.shields.io/badge/WoW-12.0.x-blue?logo=battle.net)](https://worldofwarcraft.blizzard.com)
+
 Unlimited profiles for the Blizzard Cooldown Manager with global template library, cross-character profiles, and full import/export.
 
 ## Features
@@ -10,7 +14,6 @@ Unlimited profiles for the Blizzard Cooldown Manager with global template librar
 - **Conflict Resolution** — When importing a profile or class layouts that already exist, choose to create a copy or overwrite.
 - **Sync from Blizzard** — Capture your current in-game Blizzard CDM layouts into a profile with one click.
 - **Load to Blizzard** — Push profile layouts for your current class back into the Blizzard Cooldown Manager.
-- **Auto-Switch** — Optionally auto-switch profiles when you change specialization.
 - **Minimap Button** — Quick access via minimap icon (left-click to open, right-click for settings).
 - **Resizable UI** — Three-column layout with drag-to-resize.
 
