@@ -1,0 +1,19 @@
+package-as: CooldownMaster
+
+externals:
+  Libs/LibStub:
+    url: https://repos.curseforge.com/wow/libstub/trunk
+  Libs/CallbackHandler-1.0:
+    url: https://repos.curseforge.com/wow/callbackhandler/trunk/CallbackHandler-1.0
+  Libs/LibDataBroker-1.1:
+    url: https://repos.curseforge.com/wow/libdatabroker-1-1
+  Libs/LibDBIcon-1.0:
+    url: https://repos.curseforge.com/wow/libdbicon-1-0/LibDBIcon-1.0
+  Libs/LibDeflate:
+    url: https://repos.curseforge.com/wow/libdeflate
+
+ignore:
+  - README.md
+  - CURSEFORGE.md
+  - .claude
+  - .gitignore
