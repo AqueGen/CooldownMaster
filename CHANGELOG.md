@@ -16,6 +16,8 @@ The addon has been renamed from **CooldownMaster** to **CooldownManagerProfiles*
 
 ### Other changes
 - Profile switching and import target dropdown improvements
+- Frameless colored text buttons in row actions (Rename, Export, +Library, +Profile, X)
+- Blizzard layout click-to-activate with spec restriction display
 - UI polish and layout fixes
 - Fixed "Unknown class" header for Blizzard layouts
 
