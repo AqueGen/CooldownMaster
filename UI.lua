@@ -32,12 +32,6 @@ local CLASS_COLORS = {
     SHAMAN      = "0070DE", MAGE        = "69CCF0", WARLOCK     = "9482C9",
     MONK        = "00FF96", DRUID       = "FF7D0A", DEMONHUNTER = "A330C9",
     EVOKER      = "33937F",
-    -- Lowercase aliases for case-insensitive lookup
-    warrior     = "C79C6E", paladin     = "F58CBA", hunter      = "ABD473",
-    rogue       = "FFF569", priest      = "FFFFFF", deathknight = "C41F3B",
-    shaman      = "0070DE", mage        = "69CCF0", warlock     = "9482C9",
-    monk        = "00FF96", druid       = "FF7D0A", demonhunter = "A330C9",
-    evoker      = "33937F",
 }
 
 local CLASS_DISPLAY = {
@@ -46,19 +40,11 @@ local CLASS_DISPLAY = {
     SHAMAN = "Shaman", MAGE = "Mage", WARLOCK = "Warlock",
     MONK = "Monk", DRUID = "Druid", DEMONHUNTER = "Demon Hunter",
     EVOKER = "Evoker",
-    -- Lowercase aliases for case-insensitive lookup
-    warrior = "Warrior", paladin = "Paladin", hunter = "Hunter",
-    rogue = "Rogue", priest = "Priest", deathknight = "Death Knight",
-    shaman = "Shaman", mage = "Mage", warlock = "Warlock",
-    monk = "Monk", druid = "Druid", demonhunter = "Demon Hunter",
-    evoker = "Evoker",
 }
 
-local CLASS_TOKEN_TO_ID = {
-    WARRIOR = 1, PALADIN = 2, HUNTER = 3, ROGUE = 4, PRIEST = 5,
-    DEATHKNIGHT = 6, SHAMAN = 7, MAGE = 8, WARLOCK = 9, MONK = 10,
-    DRUID = 11, DEMONHUNTER = 12, EVOKER = 13,
-}
+-- Pre-computed class sort order (index in CLASS_TOKENS)
+local TOKEN_ORDER = { UNKNOWN = 999 }
+for i, t in ipairs(ns.CLASS_TOKENS) do TOKEN_ORDER[t] = i end
 
 ---------------------------------------------------------------------------
 -- Helpers
@@ -118,22 +104,11 @@ local function CreateSectionHeader(parent, text)
     return header
 end
 
---- Detect class from specTag string (e.g. "MageArcane" -> "mage")
-local function DetectClass(specTag)
-    if not specTag or specTag == "" then return nil end
-    specTag = tostring(specTag)
-    local lower = specTag:lower()
-    for _, token in ipairs(ns.CLASS_TOKENS) do
-        if lower:find(token:lower()) then return token:lower() end
-    end
-    return nil
-end
-
 --- Colorize a specTag with its class color
 local function ColorizeSpecTag(specTag)
     if not specTag or specTag == "" then return COLOR_DIM .. "?|r" end
     specTag = tostring(specTag)
-    local cls = DetectClass(specTag)
+    local cls = ns.ClassTokenFromSpecTag(specTag)
     if cls then return "|cFF" .. CLASS_COLORS[cls] .. specTag .. "|r" end
     return COLOR_DIM .. specTag .. "|r"
 end
@@ -274,7 +249,7 @@ end
 
 local function BuildSpecItems(classToken)
     local items = { { value = nil, text = "(Any Spec)" } }
-    local classID = CLASS_TOKEN_TO_ID[classToken]
+    local classID = ns.CLASS_TOKENS_INDEX[classToken]
     if not classID then return items end
     local numSpecs = GetNumSpecializationsForClassID(classID)
     for i = 1, numSpecs do
@@ -299,9 +274,7 @@ local function GroupByClass(items)
         if item.class and CLASS_COLORS[item.class] then
             cls = item.class
         elseif item.specTag then
-            -- Detect from specTag, convert to uppercase
-            local lower = DetectClass(item.specTag)
-            cls = lower and lower:upper() or "UNKNOWN"
+            cls = ns.ClassTokenFromSpecTag(item.specTag) or "UNKNOWN"
         else
             cls = "UNKNOWN"
         end
@@ -311,12 +284,8 @@ local function GroupByClass(items)
         end
         groups[cls][#groups[cls] + 1] = item
     end
-    -- Sort by canonical CLASS_TOKENS order
-    local tokenOrder = {}
-    for i, t in ipairs(ns.CLASS_TOKENS) do tokenOrder[t] = i end
-    tokenOrder["UNKNOWN"] = 999
     table.sort(order, function(a, b)
-        return (tokenOrder[a] or 998) < (tokenOrder[b] or 998)
+        return (TOKEN_ORDER[a] or 998) < (TOKEN_ORDER[b] or 998)
     end)
     local result = {}
     for _, cls in ipairs(order) do
@@ -690,7 +659,7 @@ local function CreateMainFrame()
     local newBtn = CreateBtn(left, "New", 42, 20)
     newBtn:SetPoint("TOPLEFT", 4, yL)
     newBtn:SetScript("OnClick", function()
-        StaticPopup_Show("COOLDOWNMASTER_NEW_GLOBAL_PROFILE")
+        StaticPopup_Show("CMP_NEW_GLOBAL_PROFILE")
     end)
     newBtn:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
@@ -1062,12 +1031,12 @@ local function RefreshProfileSection()
         end)
 
         row.renBtn:SetScript("OnClick", function()
-            local dialog = StaticPopup_Show("COOLDOWNMASTER_RENAME_GLOBAL_PROFILE", pName)
+            local dialog = StaticPopup_Show("CMP_RENAME_GLOBAL_PROFILE", pName)
             if dialog then dialog.data = { uuid = uuid, oldName = pName } end
         end)
 
         row.delBtn:SetScript("OnClick", function()
-            local dialog = StaticPopup_Show("COOLDOWNMASTER_DELETE_GLOBAL_PROFILE", pName)
+            local dialog = StaticPopup_Show("CMP_DELETE_GLOBAL_PROFILE", pName)
             if dialog then dialog.data = { uuid = uuid } end
         end)
 
@@ -1169,7 +1138,7 @@ local function RefreshProfileContents()
 
             -- Rename button
             row.renameBtn:SetScript("OnClick", function()
-                local dialog = StaticPopup_Show("COOLDOWNMASTER_RENAME_PROFILE_LAYOUT", layoutName)
+                local dialog = StaticPopup_Show("CMP_RENAME_PROFILE_LAYOUT", layoutName)
                 if dialog then
                     dialog.data = { profileUUID = pUUID, class = cls, index = idx, oldName = layoutName }
                 end
@@ -1221,7 +1190,7 @@ local function RefreshProfileContents()
 
             -- Remove button
             row.delBtn:SetScript("OnClick", function()
-                local dialog = StaticPopup_Show("COOLDOWNMASTER_REMOVE_FROM_PROFILE", layoutName)
+                local dialog = StaticPopup_Show("CMP_REMOVE_FROM_PROFILE", layoutName)
                 if dialog then
                     dialog.data = { profileUUID = pUUID, class = cls, index = idx }
                 end
@@ -1399,7 +1368,7 @@ local function RefreshTemplateSection()
 
             -- Delete button
             row.delBtn:SetScript("OnClick", function()
-                local dialog = StaticPopup_Show("COOLDOWNMASTER_DELETE_TEMPLATE", tmplName)
+                local dialog = StaticPopup_Show("CMP_DELETE_TEMPLATE", tmplName)
                 if dialog then
                     dialog.data = { uuid = tmplUUID }
                 end
@@ -1795,7 +1764,7 @@ function ns.ShowImportWindow()
             elseif scope == "globalProfile" then
                 local existingUUID = ns.FindGlobalProfileByName(importFrame.decoded.name)
                 if existingUUID then
-                    local dialog = StaticPopup_Show("COOLDOWNMASTER_IMPORT_PROFILE_CONFLICT", importFrame.decoded.name)
+                    local dialog = StaticPopup_Show("CMP_IMPORT_PROFILE_CONFLICT", importFrame.decoded.name)
                     if dialog then
                         dialog.data = { decoded = importFrame.decoded, existingUUID = existingUUID }
                     end
@@ -1825,7 +1794,7 @@ function ns.ShowImportWindow()
                     local conflicts = ns.FindConflictingLayerNames(targetUUID, classToken, importFrame.decoded.layouts)
                     if #conflicts > 0 then
                         local conflictStr = table.concat(conflicts, ", ")
-                        local dialog = StaticPopup_Show("COOLDOWNMASTER_IMPORT_LAYERS_CONFLICT", conflictStr)
+                        local dialog = StaticPopup_Show("CMP_IMPORT_LAYERS_CONFLICT", conflictStr)
                         if dialog then
                             dialog.data = { decoded = importFrame.decoded, profileUUID = targetUUID }
                         end
@@ -2009,19 +1978,7 @@ function ns.ShowEditTemplateWindow(uuid)
         editTmplFrame.UpdateAutoName = function()
             local cls = classDropdown:GetSelected() or "UNKNOWN"
             local spec = specDropdown:GetSelected()
-            local profileUUID = selectedProfileUUID
-                or (ns.GetActiveGlobalProfileUUID and ns.GetActiveGlobalProfileUUID())
-            local parts = {}
-            if profileUUID and ns.db.globalProfiles[profileUUID] then
-                local pName = ns.db.globalProfiles[profileUUID].name
-                if pName and pName ~= "" then
-                    parts[#parts + 1] = pName
-                end
-            end
-            local classDisplay = CLASS_DISPLAY[cls] or cls
-            local classPart = spec and (classDisplay .. " " .. spec) or classDisplay
-            parts[#parts + 1] = classPart
-            autoNameText:SetText(table.concat(parts, " - "))
+            autoNameText:SetText(GenerateCDMImportName(cls, spec))
         end
 
         classDropdown.onChanged = function(classToken)

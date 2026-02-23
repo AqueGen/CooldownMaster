@@ -8,7 +8,6 @@ ns.DB_VERSION = 4
 -- State
 ns.db = nil
 ns.charKey = nil
-ns.specID = 0
 ns.dataLoaded = false
 ns.layoutManager = nil
 
@@ -69,13 +68,16 @@ ns.CLASS_TOKENS = {
 }
 
 ns.CLASS_TOKEN_SET = {}
-for _, t in ipairs(ns.CLASS_TOKENS) do ns.CLASS_TOKEN_SET[t] = true end
+ns.CLASS_TOKENS_INDEX = {}
+for i, t in ipairs(ns.CLASS_TOKENS) do
+    ns.CLASS_TOKEN_SET[t] = true
+    ns.CLASS_TOKENS_INDEX[t] = i
+end
 
 function ns.EnsureCDMLoaded()
     if CooldownViewerSettings then return true end
-    local loader = C_AddOns and C_AddOns.LoadAddOn or UIParentLoadAddOn
-    if loader then
-        pcall(loader, "Blizzard_CooldownViewer")
+    if C_AddOns and C_AddOns.LoadAddOn then
+        pcall(C_AddOns.LoadAddOn, "Blizzard_CooldownViewer")
     end
     return CooldownViewerSettings ~= nil
 end
@@ -193,7 +195,6 @@ function ns.InitDB()
     if not db.settings then db.settings = {} end
     if db.settings.showMinimap == nil then db.settings.showMinimap = true end
     if db.settings.verboseChat == nil then db.settings.verboseChat = true end
-    db.settings.uiScale = nil -- removed, use resize now
     if not db.settings.minimapPos then db.settings.minimapPos = {} end
 
     ns.db = db
@@ -236,7 +237,6 @@ ef:SetScript("OnEvent", function(self, event, ...)
             ns.charKey = ns.GetCharKey()
             if ns.charKey then ns.EnsureCharTables() end
         end
-        ns.specID = ns.GetSpecID()
         if C_CooldownViewer and not ns.dataLoaded then
             C_Timer.After(3, function()
                 if not ns.dataLoaded then
@@ -253,6 +253,13 @@ ef:SetScript("OnEvent", function(self, event, ...)
         ns.dataLoaded = true
         ns.GetLayoutManager()
         ns.OnDataReady()
+        -- Subscribe to CDM changes for reactive UI updates
+        if EventRegistry then
+            EventRegistry:RegisterCallback("CooldownViewerSettings.OnDataChanged", function()
+                if ns.AutoSaveActiveProfile then ns.AutoSaveActiveProfile() end
+                if ns.RefreshUI then ns.RefreshUI() end
+            end, ns)
+        end
 
     elseif event == "PLAYER_REGEN_ENABLED" then
         if ns.pendingProfileLoad then
@@ -344,18 +351,6 @@ SlashCmdList["COOLDOWNMANAGERPROFILES"] = function(msg)
         print("  /cm export       - Open export window")
         print("  /cm settings     - Open addon settings (ESC panel)")
         print("  /cm help         - Show this help")
-    elseif cmd == "debug-viewer" then
-        local v = _G["EssentialCooldownViewer"]
-        if not v then ns.Print("No EssentialCooldownViewer"); return end
-        local methods = {}
-        for k, val in pairs(v) do
-            if type(val) == "function" then
-                methods[#methods + 1] = k
-            end
-        end
-        table.sort(methods)
-        ns.Print("EssentialCooldownViewer functions (" .. #methods .. "):")
-        for _, m in ipairs(methods) do print("  " .. m) end
     else
         ns.Print("Unknown command. Type /cm help")
     end

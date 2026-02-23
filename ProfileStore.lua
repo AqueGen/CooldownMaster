@@ -17,10 +17,14 @@ function ns.CaptureLayoutMeta()
                 pcall(function() entry.name = CooldownManagerLayout_GetName(layout) end)
             end
             if CooldownManagerLayout_GetClassAndSpecTag then
-                pcall(function() entry.specTag = CooldownManagerLayout_GetClassAndSpecTag(layout) end)
+                pcall(function()
+                    local raw = CooldownManagerLayout_GetClassAndSpecTag(layout)
+                    entry.specTagNum = raw  -- numeric: classID * 10 + specIndex
+                    entry.specTag = raw and tostring(raw) or ""
+                end)
             end
             entry.name = entry.name or ("Layout " .. layoutID)
-            entry.specTag = entry.specTag and tostring(entry.specTag) or ""
+            entry.specTag = entry.specTag or ""
             meta[#meta + 1] = entry
         end
     end)
@@ -92,7 +96,7 @@ function ns.LoadProfile(name)
     ns.db.activeProfile[ns.charKey] = name
     -- Clear stale name overrides (new blob has its own layout IDs)
     ns.db.layoutNameOverrides[ns.charKey] = {}
-    StaticPopup_Show("COOLDOWNMASTER_RELOAD_UI")
+    StaticPopup_Show("CMP_RELOAD_UI")
     return true
 end
 
@@ -178,15 +182,18 @@ function ns.GetBlizzardLayouts()
             if CooldownManagerLayout_GetName then
                 name = CooldownManagerLayout_GetName(layout) or name
             end
+            local specTagNum
             if CooldownManagerLayout_GetClassAndSpecTag then
                 local raw = CooldownManagerLayout_GetClassAndSpecTag(layout)
+                specTagNum = raw
                 specTag = raw and tostring(raw) or ""
             end
             if CooldownManagerLayout_IsDefaultLayout then
                 isDef = CooldownManagerLayout_IsDefaultLayout(layout) or false
             end
             layouts[#layouts + 1] = {
-                id = layoutID, name = name, specTag = specTag, isDefault = isDef,
+                id = layoutID, name = name, specTag = specTag,
+                specTagNum = specTagNum, isDefault = isDef,
                 class = ns.GetClassToken(),
             }
         end
@@ -706,7 +713,7 @@ function ns.LoadGlobalProfile(profileUUID)
 
     ns.SetActiveGlobalProfileUUID(profileUUID)
     if ns.RefreshUI then ns.RefreshUI() end
-    StaticPopup_Show("COOLDOWNMASTER_RELOAD_UI")
+    StaticPopup_Show("CMP_RELOAD_UI")
     return true, loaded .. " layout(s) loaded for " .. classToken .. "."
 end
 
@@ -743,6 +750,7 @@ function ns.SyncBlizzardToGlobalProfile(profileUUID)
             profile.layouts[classToken][#profile.layouts[classToken] + 1] = {
                 name = l.name or ("Layout " .. l.id),
                 spec = ns.SpecFromSpecTag(l.specTag),
+                specTagNum = l.specTagNum,
                 data = data,
                 created = time(),
                 modified = time(),
@@ -789,14 +797,14 @@ end
 -- StaticPopup Dialogs
 ---------------------------------------------------------------------------
 
-StaticPopupDialogs["COOLDOWNMASTER_RELOAD_UI"] = {
+StaticPopupDialogs["CMP_RELOAD_UI"] = {
     text = "CM Profiles\n\nProfile loaded successfully.\nUI reload is required to apply layout changes.\n\n|cFF888888Blizzard's Cooldown Manager does not support live layout updates from addons. This workaround may be improved in future versions.|r",
     button1 = "Reload Now", button2 = "Later",
     timeout = 0, whileDead = true, hideOnEscape = true,
     OnAccept = function() ReloadUI() end,
 }
 
-StaticPopupDialogs["COOLDOWNMASTER_SAVE_PROFILE"] = {
+StaticPopupDialogs["CMP_SAVE_PROFILE"] = {
     text = "CM Profiles\nSave current state as profile:",
     button1 = "Save", button2 = "Cancel",
     hasEditBox = true, timeout = 0, whileDead = true, hideOnEscape = true,
@@ -814,13 +822,13 @@ StaticPopupDialogs["COOLDOWNMASTER_SAVE_PROFILE"] = {
     end,
     EditBoxOnEnterPressed = function(self)
         local p = self:GetParent()
-        StaticPopupDialogs["COOLDOWNMASTER_SAVE_PROFILE"].OnAccept(p)
+        StaticPopupDialogs["CMP_SAVE_PROFILE"].OnAccept(p)
         p:Hide()
     end,
     EditBoxOnEscapePressed = function(self) self:GetParent():Hide() end,
 }
 
-StaticPopupDialogs["COOLDOWNMASTER_NEW_PROFILE"] = {
+StaticPopupDialogs["CMP_NEW_PROFILE"] = {
     text = "CM Profiles\nNew profile name:",
     button1 = "Create", button2 = "Cancel",
     hasEditBox = true, timeout = 0, whileDead = true, hideOnEscape = true,
@@ -837,13 +845,13 @@ StaticPopupDialogs["COOLDOWNMASTER_NEW_PROFILE"] = {
     end,
     EditBoxOnEnterPressed = function(self)
         local p = self:GetParent()
-        StaticPopupDialogs["COOLDOWNMASTER_NEW_PROFILE"].OnAccept(p)
+        StaticPopupDialogs["CMP_NEW_PROFILE"].OnAccept(p)
         p:Hide()
     end,
     EditBoxOnEscapePressed = function(self) self:GetParent():Hide() end,
 }
 
-StaticPopupDialogs["COOLDOWNMASTER_DELETE_PROFILE"] = {
+StaticPopupDialogs["CMP_DELETE_PROFILE"] = {
     text = "CM Profiles\nDelete profile '%s'?",
     button1 = "Delete", button2 = "Cancel",
     timeout = 0, whileDead = true, hideOnEscape = true, showAlert = true,
@@ -854,7 +862,7 @@ StaticPopupDialogs["COOLDOWNMASTER_DELETE_PROFILE"] = {
     end,
 }
 
-StaticPopupDialogs["COOLDOWNMASTER_RENAME_PROFILE"] = {
+StaticPopupDialogs["CMP_RENAME_PROFILE"] = {
     text = "CM Profiles\nRename profile '%s':",
     button1 = "Rename", button2 = "Cancel",
     hasEditBox = true, timeout = 0, whileDead = true, hideOnEscape = true,
@@ -872,7 +880,7 @@ StaticPopupDialogs["COOLDOWNMASTER_RENAME_PROFILE"] = {
     end,
     EditBoxOnEnterPressed = function(self)
         local p = self:GetParent()
-        StaticPopupDialogs["COOLDOWNMASTER_RENAME_PROFILE"].OnAccept(p, p.data)
+        StaticPopupDialogs["CMP_RENAME_PROFILE"].OnAccept(p, p.data)
         p:Hide()
     end,
     EditBoxOnEscapePressed = function(self) self:GetParent():Hide() end,
@@ -882,7 +890,7 @@ StaticPopupDialogs["COOLDOWNMASTER_RENAME_PROFILE"] = {
 -- Global Profile StaticPopup Dialogs
 ---------------------------------------------------------------------------
 
-StaticPopupDialogs["COOLDOWNMASTER_NEW_GLOBAL_PROFILE"] = {
+StaticPopupDialogs["CMP_NEW_GLOBAL_PROFILE"] = {
     text = "CM Profiles\nNew global profile name:",
     button1 = "Create", button2 = "Cancel",
     hasEditBox = true, timeout = 0, whileDead = true, hideOnEscape = true,
@@ -899,13 +907,13 @@ StaticPopupDialogs["COOLDOWNMASTER_NEW_GLOBAL_PROFILE"] = {
     end,
     EditBoxOnEnterPressed = function(self)
         local p = self:GetParent()
-        StaticPopupDialogs["COOLDOWNMASTER_NEW_GLOBAL_PROFILE"].OnAccept(p)
+        StaticPopupDialogs["CMP_NEW_GLOBAL_PROFILE"].OnAccept(p)
         p:Hide()
     end,
     EditBoxOnEscapePressed = function(self) self:GetParent():Hide() end,
 }
 
-StaticPopupDialogs["COOLDOWNMASTER_DELETE_GLOBAL_PROFILE"] = {
+StaticPopupDialogs["CMP_DELETE_GLOBAL_PROFILE"] = {
     text = "CM Profiles\nDelete global profile '%s'?\nThis will remove it for all characters.",
     button1 = "Delete", button2 = "Cancel",
     timeout = 0, whileDead = true, hideOnEscape = true, showAlert = true,
@@ -916,7 +924,7 @@ StaticPopupDialogs["COOLDOWNMASTER_DELETE_GLOBAL_PROFILE"] = {
     end,
 }
 
-StaticPopupDialogs["COOLDOWNMASTER_RENAME_GLOBAL_PROFILE"] = {
+StaticPopupDialogs["CMP_RENAME_GLOBAL_PROFILE"] = {
     text = "CM Profiles\nRename global profile '%s':",
     button1 = "Rename", button2 = "Cancel",
     hasEditBox = true, timeout = 0, whileDead = true, hideOnEscape = true,
@@ -933,13 +941,13 @@ StaticPopupDialogs["COOLDOWNMASTER_RENAME_GLOBAL_PROFILE"] = {
     end,
     EditBoxOnEnterPressed = function(self)
         local p = self:GetParent()
-        StaticPopupDialogs["COOLDOWNMASTER_RENAME_GLOBAL_PROFILE"].OnAccept(p, p.data)
+        StaticPopupDialogs["CMP_RENAME_GLOBAL_PROFILE"].OnAccept(p, p.data)
         p:Hide()
     end,
     EditBoxOnEscapePressed = function(self) self:GetParent():Hide() end,
 }
 
-StaticPopupDialogs["COOLDOWNMASTER_DELETE_TEMPLATE"] = {
+StaticPopupDialogs["CMP_DELETE_TEMPLATE"] = {
     text = "CM Profiles\nDelete template '%s'?",
     button1 = "Delete", button2 = "Cancel",
     timeout = 0, whileDead = true, hideOnEscape = true, showAlert = true,
@@ -950,7 +958,7 @@ StaticPopupDialogs["COOLDOWNMASTER_DELETE_TEMPLATE"] = {
     end,
 }
 
-StaticPopupDialogs["COOLDOWNMASTER_RENAME_TEMPLATE"] = {
+StaticPopupDialogs["CMP_RENAME_TEMPLATE"] = {
     text = "CM Profiles\nRename template '%s':",
     button1 = "Rename", button2 = "Cancel",
     hasEditBox = true, timeout = 0, whileDead = true, hideOnEscape = true,
@@ -967,13 +975,13 @@ StaticPopupDialogs["COOLDOWNMASTER_RENAME_TEMPLATE"] = {
     end,
     EditBoxOnEnterPressed = function(self)
         local p = self:GetParent()
-        StaticPopupDialogs["COOLDOWNMASTER_RENAME_TEMPLATE"].OnAccept(p, p.data)
+        StaticPopupDialogs["CMP_RENAME_TEMPLATE"].OnAccept(p, p.data)
         p:Hide()
     end,
     EditBoxOnEscapePressed = function(self) self:GetParent():Hide() end,
 }
 
-StaticPopupDialogs["COOLDOWNMASTER_REMOVE_FROM_PROFILE"] = {
+StaticPopupDialogs["CMP_REMOVE_FROM_PROFILE"] = {
     text = "CM Profiles\nRemove layout '%s' from this profile?",
     button1 = "Remove", button2 = "Cancel",
     timeout = 0, whileDead = true, hideOnEscape = true, showAlert = true,
@@ -984,7 +992,7 @@ StaticPopupDialogs["COOLDOWNMASTER_REMOVE_FROM_PROFILE"] = {
     end,
 }
 
-StaticPopupDialogs["COOLDOWNMASTER_RENAME_PROFILE_LAYOUT"] = {
+StaticPopupDialogs["CMP_RENAME_PROFILE_LAYOUT"] = {
     text = "CM Profiles\nRename layout '%s':",
     button1 = "Rename", button2 = "Cancel",
     hasEditBox = true, timeout = 0, whileDead = true, hideOnEscape = true,
@@ -1001,7 +1009,7 @@ StaticPopupDialogs["COOLDOWNMASTER_RENAME_PROFILE_LAYOUT"] = {
     end,
     EditBoxOnEnterPressed = function(self)
         local p = self:GetParent()
-        StaticPopupDialogs["COOLDOWNMASTER_RENAME_PROFILE_LAYOUT"].OnAccept(p, p.data)
+        StaticPopupDialogs["CMP_RENAME_PROFILE_LAYOUT"].OnAccept(p, p.data)
         p:Hide()
     end,
     EditBoxOnEscapePressed = function(self) self:GetParent():Hide() end,
@@ -1011,7 +1019,7 @@ StaticPopupDialogs["COOLDOWNMASTER_RENAME_PROFILE_LAYOUT"] = {
 -- Import Conflict Resolution Dialogs
 ---------------------------------------------------------------------------
 
-StaticPopupDialogs["COOLDOWNMASTER_IMPORT_PROFILE_CONFLICT"] = {
+StaticPopupDialogs["CMP_IMPORT_PROFILE_CONFLICT"] = {
     text = "CM Profiles\nA profile named '%s' already exists.",
     button1 = "Create a Copy", button2 = "Cancel", button3 = "Overwrite",
     timeout = 0, whileDead = true, hideOnEscape = true,
@@ -1027,7 +1035,7 @@ StaticPopupDialogs["COOLDOWNMASTER_IMPORT_PROFILE_CONFLICT"] = {
     end,
 }
 
-StaticPopupDialogs["COOLDOWNMASTER_IMPORT_LAYERS_CONFLICT"] = {
+StaticPopupDialogs["CMP_IMPORT_LAYERS_CONFLICT"] = {
     text = "CM Profiles\nThese layers already exist:\n%s",
     button1 = "Create Copies", button2 = "Cancel", button3 = "Overwrite",
     timeout = 0, whileDead = true, hideOnEscape = true,
