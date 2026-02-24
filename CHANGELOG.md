@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.0.1
+
+- Replaced direct ReloadUI with a confirmation popup ("Reload Now" / "Later") when loading profiles
+- Fixed layout desync: call SaveLayouts() before reload in LoadGlobalProfile
+- Clear stale layout name overrides when loading profiles
+- Removed stored layouts system and individual layout operations (dead code cleanup)
+- Removed active layout highlighting and spec-based dimming from Blizzard Layouts section (now informational only)
+- Renamed all popup dialogs from COOLDOWNMASTER to CMP prefix
+- Added reactive UI updates — subscribes to CooldownViewerSettings.OnDataChanged
+- Removed confirmation popup when removing a layout from a profile (X button) for faster workflow
+- Removed chat spam for routine UI operations (rename, delete, add to profile, save to library) — errors are still shown
+
 ## 2.0.0
 
 ### Renamed addon to Cooldown Manager Profiles

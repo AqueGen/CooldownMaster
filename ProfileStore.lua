@@ -818,7 +818,7 @@ StaticPopupDialogs["CMP_SAVE_PROFILE"] = {
         local name = (self.EditBox:GetText() or ""):match("^%s*(.-)%s*$")
         if name == "" then return end
         local ok, err = ns.SaveProfile(name, true)
-        ns.Print(ok and ("Saved: " .. name) or ("|cFFFF0000Error:|r " .. err))
+        if not ok then ns.Print("|cFFFF0000Error:|r " .. err) end
     end,
     EditBoxOnEnterPressed = function(self)
         local p = self:GetParent()
@@ -837,9 +837,7 @@ StaticPopupDialogs["CMP_NEW_PROFILE"] = {
         local name = (self.EditBox:GetText() or ""):match("^%s*(.-)%s*$")
         if name == "" then return end
         local ok, err = ns.SaveProfile(name, false)
-        if ok then
-            ns.Print("Created and activated: " .. name)
-        elseif err then
+        if not ok and err then
             ns.Print("|cFFFF0000Error:|r " .. err)
         end
     end,
@@ -858,7 +856,7 @@ StaticPopupDialogs["CMP_DELETE_PROFILE"] = {
     OnAccept = function(self, data)
         if not data then return end
         local ok, err = ns.DeleteProfile(data.name)
-        ns.Print(ok and "Deleted." or ("|cFFFF0000Error:|r " .. err))
+        if not ok then ns.Print("|cFFFF0000Error:|r " .. err) end
     end,
 }
 
@@ -876,7 +874,7 @@ StaticPopupDialogs["CMP_RENAME_PROFILE"] = {
         local newName = (self.EditBox:GetText() or ""):match("^%s*(.-)%s*$")
         if newName == "" then return end
         local ok, err = ns.RenameProfile(data.oldName, newName)
-        ns.Print(ok and ("Renamed: " .. newName) or ("|cFFFF0000Error:|r " .. err))
+        if not ok then ns.Print("|cFFFF0000Error:|r " .. err) end
     end,
     EditBoxOnEnterPressed = function(self)
         local p = self:GetParent()
@@ -899,9 +897,7 @@ StaticPopupDialogs["CMP_NEW_GLOBAL_PROFILE"] = {
         local name = (self.EditBox:GetText() or ""):match("^%s*(.-)%s*$")
         if name == "" then return end
         local uuid, err = ns.CreateGlobalProfile(name)
-        if uuid then
-            ns.Print("Created global profile: " .. name)
-        else
+        if not uuid then
             ns.Print("|cFFFF0000Error:|r " .. (err or "unknown"))
         end
     end,
@@ -920,7 +916,7 @@ StaticPopupDialogs["CMP_DELETE_GLOBAL_PROFILE"] = {
     OnAccept = function(self, data)
         if not data then return end
         local ok, err = ns.DeleteGlobalProfile(data.uuid)
-        ns.Print(ok and "Deleted." or ("|cFFFF0000Error:|r " .. err))
+        if not ok then ns.Print("|cFFFF0000Error:|r " .. err) end
     end,
 }
 
@@ -937,7 +933,7 @@ StaticPopupDialogs["CMP_RENAME_GLOBAL_PROFILE"] = {
         local n = (self.EditBox:GetText() or ""):match("^%s*(.-)%s*$")
         if n == "" then return end
         local ok, err = ns.RenameGlobalProfile(data.uuid, n)
-        ns.Print(ok and ("Renamed: " .. n) or ("|cFFFF0000Error:|r " .. err))
+        if not ok then ns.Print("|cFFFF0000Error:|r " .. err) end
     end,
     EditBoxOnEnterPressed = function(self)
         local p = self:GetParent()
@@ -954,7 +950,7 @@ StaticPopupDialogs["CMP_DELETE_TEMPLATE"] = {
     OnAccept = function(self, data)
         if not data then return end
         local ok, err = ns.DeleteTemplate(data.uuid)
-        ns.Print(ok and "Deleted." or ("|cFFFF0000Error:|r " .. err))
+        if not ok then ns.Print("|cFFFF0000Error:|r " .. err) end
     end,
 }
 
@@ -971,7 +967,7 @@ StaticPopupDialogs["CMP_RENAME_TEMPLATE"] = {
         local n = (self.EditBox:GetText() or ""):match("^%s*(.-)%s*$")
         if n == "" then return end
         local ok, err = ns.RenameTemplate(data.uuid, n)
-        ns.Print(ok and ("Renamed: " .. n) or ("|cFFFF0000Error:|r " .. err))
+        if not ok then ns.Print("|cFFFF0000Error:|r " .. err) end
     end,
     EditBoxOnEnterPressed = function(self)
         local p = self:GetParent()
@@ -979,17 +975,6 @@ StaticPopupDialogs["CMP_RENAME_TEMPLATE"] = {
         p:Hide()
     end,
     EditBoxOnEscapePressed = function(self) self:GetParent():Hide() end,
-}
-
-StaticPopupDialogs["CMP_REMOVE_FROM_PROFILE"] = {
-    text = "CM Profiles\nRemove layout '%s' from this profile?",
-    button1 = "Remove", button2 = "Cancel",
-    timeout = 0, whileDead = true, hideOnEscape = true, showAlert = true,
-    OnAccept = function(self, data)
-        if not data then return end
-        local ok, err = ns.RemoveLayoutFromProfile(data.profileUUID, data.class, data.index)
-        ns.Print(ok and "Removed." or ("|cFFFF0000Error:|r " .. err))
-    end,
 }
 
 StaticPopupDialogs["CMP_RENAME_PROFILE_LAYOUT"] = {
@@ -1005,7 +990,7 @@ StaticPopupDialogs["CMP_RENAME_PROFILE_LAYOUT"] = {
         local n = (self.EditBox:GetText() or ""):match("^%s*(.-)%s*$")
         if n == "" then return end
         local ok, err = ns.RenameLayoutInProfile(data.profileUUID, data.class, data.index, n)
-        ns.Print(ok and ("Renamed: " .. n) or ("|cFFFF0000Error:|r " .. err))
+        if not ok then ns.Print("|cFFFF0000Error:|r " .. err) end
     end,
     EditBoxOnEnterPressed = function(self)
         local p = self:GetParent()

@@ -1,7 +1,7 @@
 local addonName, ns = ...
 
 ns.ADDON_NAME = "Cooldown Manager Profiles"
-ns.VERSION = "2.0.0"
+ns.VERSION = "2.0.1"
 ns.PREFIX_COLOR = "|cFF00CCFF"
 ns.DB_VERSION = 4
 

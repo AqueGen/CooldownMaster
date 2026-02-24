@@ -1174,9 +1174,7 @@ local function RefreshProfileContents()
             -- Save to Library button
             row.libBtn:SetScript("OnClick", function()
                 local uuid, err = ns.SaveLayoutAsTemplate(pUUID, cls, idx)
-                if uuid then
-                    ns.Print("Saved to library: " .. layoutName)
-                else
+                if not uuid then
                     ns.Print("|cFFFF0000Error:|r " .. (err or "unknown"))
                 end
             end)
@@ -1188,11 +1186,11 @@ local function RefreshProfileContents()
             end)
             row.libBtn:SetScript("OnLeave", GameTooltip_Hide)
 
-            -- Remove button
+            -- Remove button (no confirmation — data is recoverable from Library)
             row.delBtn:SetScript("OnClick", function()
-                local dialog = StaticPopup_Show("CMP_REMOVE_FROM_PROFILE", layoutName)
-                if dialog then
-                    dialog.data = { profileUUID = pUUID, class = cls, index = idx }
+                local ok, err = ns.RemoveLayoutFromProfile(pUUID, cls, idx)
+                if not ok then
+                    ns.Print("|cFFFF0000Error:|r " .. (err or "unknown"))
                 end
             end)
             row.delBtn:SetScript("OnEnter", function(self)
@@ -1317,9 +1315,7 @@ local function RefreshTemplateSection()
                     return
                 end
                 local ok, err = ns.AddTemplateToProfile(selectedProfileUUID, tmplUUID)
-                if ok then
-                    ns.Print("Added '" .. tmplName .. "' to profile.")
-                else
+                if not ok then
                     ns.Print("|cFFFF0000Error:|r " .. (err or "unknown"))
                 end
             end)
