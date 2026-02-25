@@ -616,6 +616,122 @@ function ns.RefreshLayoutFromTemplate(profileUUID, class, index)
 end
 
 ---------------------------------------------------------------------------
+-- PRESET PROFILE ACCESSORS
+---------------------------------------------------------------------------
+
+--- Check if an ID refers to a preset profile
+function ns.IsPresetProfile(id)
+    if not id then return false end
+    return id:sub(1, 7) == "preset:" and ns.presets[id] ~= nil
+end
+
+--- Get a preset profile by ID (same shape as globalProfiles entry)
+function ns.GetPresetProfile(presetId)
+    return ns.presets[presetId]
+end
+
+--- Get ordered list of preset profiles for UI display
+function ns.GetPresetProfileList()
+    local list = {}
+    for _, id in ipairs(ns.presetOrder or {}) do
+        local preset = ns.presets[id]
+        if preset then
+            local layoutCount = 0
+            local classCount = 0
+            for _, layouts in pairs(preset.layouts) do
+                classCount = classCount + 1
+                layoutCount = layoutCount + #layouts
+            end
+            list[#list + 1] = {
+                uuid = id,
+                name = preset.name,
+                description = preset.description,
+                author = preset.author,
+                layoutCount = layoutCount,
+                classCount = classCount,
+                isPreset = true,
+            }
+        end
+    end
+    return list
+end
+
+--- Get layouts from a preset profile, optionally filtered by class
+function ns.GetPresetLayouts(presetId, classFilter)
+    local preset = ns.presets[presetId]
+    if not preset then return {} end
+
+    local result = {}
+    for classToken, layouts in pairs(preset.layouts) do
+        if not classFilter or classToken == classFilter then
+            for i, entry in ipairs(layouts) do
+                result[#result + 1] = {
+                    class = classToken,
+                    index = i,
+                    name = entry.name,
+                    spec = entry.spec,
+                    data = entry.data,
+                    isPreset = true,
+                }
+            end
+        end
+    end
+
+    table.sort(result, function(a, b)
+        if a.class ~= b.class then return a.class < b.class end
+        return a.index < b.index
+    end)
+    return result
+end
+
+---------------------------------------------------------------------------
+-- PRESET PROFILE ACTIONS
+---------------------------------------------------------------------------
+
+--- Copy an entire preset profile into a new editable user profile
+function ns.CopyPresetToUserProfile(presetId)
+    local preset = ns.presets[presetId]
+    if not preset then return nil, "Preset not found." end
+
+    local name = preset.name .. " (Copy)"
+    local uuid, err = ns.CreateGlobalProfile(name, preset.description)
+    if not uuid then return nil, err end
+
+    local profile = ns.db.globalProfiles[uuid]
+    local totalLayouts = 0
+
+    for classToken, classLayouts in pairs(preset.layouts) do
+        profile.layouts[classToken] = {}
+        for _, entry in ipairs(classLayouts) do
+            if entry.data and entry.data ~= "" then
+                profile.layouts[classToken][#profile.layouts[classToken] + 1] = {
+                    name = entry.name or "Layout",
+                    spec = entry.spec,
+                    data = entry.data,
+                    created = time(),
+                    modified = time(),
+                }
+                totalLayouts = totalLayouts + 1
+            end
+        end
+    end
+
+    if ns.RefreshUI then ns.RefreshUI() end
+    return uuid, totalLayouts
+end
+
+--- Copy a single layout from a preset into the Template Library
+function ns.CopyPresetLayoutToLibrary(presetId, class, index)
+    local preset = ns.presets[presetId]
+    if not preset then return nil, "Preset not found." end
+    local layouts = preset.layouts[class]
+    if not layouts or not layouts[index] then return nil, "Layout not found." end
+
+    local entry = layouts[index]
+    return ns.AddTemplate(entry.name, class, entry.spec, entry.data)
+end
+
+---------------------------------------------------------------------------
 -- LOAD GLOBAL PROFILE INTO BLIZZARD
 ---------------------------------------------------------------------------
 
@@ -641,7 +757,12 @@ function ns.LoadGlobalProfile(profileUUID)
     end
     if not ns.dataLoaded then return false, "CDM data not loaded yet." end
 
-    local profile = ns.db.globalProfiles[profileUUID]
+    local profile
+    if ns.IsPresetProfile(profileUUID) then
+        profile = ns.GetPresetProfile(profileUUID)
+    else
+        profile = ns.db.globalProfiles[profileUUID]
+    end
     if not profile then return false, "Profile not found." end
 
     local classToken = ns.GetClassToken()
@@ -1034,4 +1155,15 @@ StaticPopupDialogs["CMP_IMPORT_LAYERS_CONFLICT"] = {
         local ok, msg = ns.ApplyImportClassLayouts(data.decoded, data.profileUUID, "overwrite")
         ns.Print(ok and ("|cFF00FF00" .. msg .. "|r") or ("|cFFFF0000Error:|r " .. msg))
     end,
+}
+
+StaticPopupDialogs["CMP_AUTHOR_URL"] = {
+    text = "CM Profiles\nAuthor website — copy the URL below:",
+    hasEditBox = true, button1 = "Close", timeout = 0, whileDead = true, hideOnEscape = true,
+    OnShow = function(self)
+        self.EditBox:SetText(self.data or "")
+        self.EditBox:HighlightText()
+        self.EditBox:SetFocus()
+    end,
+    EditBoxOnEscapePressed = function(self) self:GetParent():Hide() end,
 }

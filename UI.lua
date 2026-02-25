@@ -655,9 +655,9 @@ local function CreateMainFrame()
 
     yL = yL - 18
 
-    -- New profile button (above scroll)
+    -- New profile button (positioned inside scroll content by RefreshProfileSection)
     local newBtn = CreateBtn(left, "New", 42, 20)
-    newBtn:SetPoint("TOPLEFT", 4, yL)
+    newBtn:Hide()
     newBtn:SetScript("OnClick", function()
         StaticPopup_Show("CMP_NEW_GLOBAL_PROFILE")
     end)
@@ -668,8 +668,7 @@ local function CreateMainFrame()
         GameTooltip:Show()
     end)
     newBtn:SetScript("OnLeave", GameTooltip_Hide)
-
-    yL = yL - 24
+    mainFrame.newBtn = newBtn
 
     -- Profile scroll area
     local profScroll = CreateFrame("ScrollFrame", "CMGlobalProfScroll", left, "UIPanelScrollFrameTemplate")
@@ -696,6 +695,25 @@ local function CreateMainFrame()
     center.profileNameText = center:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     center.profileNameText:SetPoint("TOPRIGHT", -4, yC)
     center.profileNameText:SetJustifyH("RIGHT")
+
+    local websiteBtn = CreateTextBtn(center, "Website", 0.3, 0.7, 1.0, 50, 16)
+    websiteBtn:SetPoint("RIGHT", center.profileNameText, "LEFT", -4, 0)
+    websiteBtn:Hide()
+    websiteBtn:SetScript("OnClick", function()
+        if not selectedProfileUUID or not ns.IsPresetProfile(selectedProfileUUID) then return end
+        local preset = ns.GetPresetProfile(selectedProfileUUID)
+        if preset and preset.url then
+            StaticPopup_Show("CMP_AUTHOR_URL", nil, nil, preset.url)
+        end
+    end)
+    websiteBtn:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:AddLine("Open author's website URL")
+        GameTooltip:AddLine("Shows a copyable link", 0.7, 0.7, 0.7)
+        GameTooltip:Show()
+    end)
+    websiteBtn:SetScript("OnLeave", GameTooltip_Hide)
+    mainFrame.websiteBtn = websiteBtn
 
     yC = yC - 18
 
@@ -760,6 +778,28 @@ local function CreateMainFrame()
     end)
     loadBtn:SetScript("OnLeave", GameTooltip_Hide)
     mainFrame.loadBtn = loadBtn
+
+    local copyProfileBtn = CreateBtn(mainFrame.centerBtnFrame, "Copy Profile", 90, 20)
+    copyProfileBtn:Hide()
+    copyProfileBtn:SetScript("OnClick", function()
+        if not selectedProfileUUID or not ns.IsPresetProfile(selectedProfileUUID) then return end
+        local uuid, count = ns.CopyPresetToUserProfile(selectedProfileUUID)
+        if uuid then
+            selectedProfileUUID = uuid
+            ns.Print(COLOR_GREEN .. "Copied preset with " .. count .. " layout(s).|r")
+            RefreshAll()
+        else
+            ns.Print("|cFFFF0000Error:|r " .. (count or "Copy failed."))
+        end
+    end)
+    copyProfileBtn:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:SetText("Copy Profile")
+        GameTooltip:AddLine("Create an editable copy of this\npreset profile.", 1, 1, 1, true)
+        GameTooltip:Show()
+    end)
+    copyProfileBtn:SetScript("OnLeave", GameTooltip_Hide)
+    mainFrame.copyProfileBtn = copyProfileBtn
 
     -- Blizzard Layouts section (lower part of center column)
     local blizzY = -350  -- adjusted by sizing
@@ -855,9 +895,16 @@ local function CreateMainFrame()
             ns.Print("Select a global profile first.")
             return
         end
-        local str, err = ns.ExportGlobalProfile(selectedProfileUUID)
+        local str, err
+        if ns.IsPresetProfile(selectedProfileUUID) then
+            str, err = ns.ExportPresetProfile(selectedProfileUUID)
+        else
+            str, err = ns.ExportGlobalProfile(selectedProfileUUID)
+        end
         if str then
-            local profile = ns.GetGlobalProfile(selectedProfileUUID)
+            local profile = ns.IsPresetProfile(selectedProfileUUID)
+                and ns.GetPresetProfile(selectedProfileUUID)
+                or ns.GetGlobalProfile(selectedProfileUUID)
             ns.ShowExportStringWindow(str, "Profile: " .. (profile and profile.name or "?"))
         else
             ns.Print("|cFFFF0000Error:|r " .. (err or "Nothing to export."))
@@ -872,9 +919,16 @@ local function CreateMainFrame()
             return
         end
         local classToken = ns.GetClassToken()
-        local str, err = ns.ExportProfileClass(selectedProfileUUID, classToken)
+        local str, err
+        if ns.IsPresetProfile(selectedProfileUUID) then
+            str, err = ns.ExportPresetClass(selectedProfileUUID, classToken)
+        else
+            str, err = ns.ExportProfileClass(selectedProfileUUID, classToken)
+        end
         if str then
-            local profile = ns.GetGlobalProfile(selectedProfileUUID)
+            local profile = ns.IsPresetProfile(selectedProfileUUID)
+                and ns.GetPresetProfile(selectedProfileUUID)
+                or ns.GetGlobalProfile(selectedProfileUUID)
             ns.ShowExportStringWindow(str, classToken .. " from " .. (profile and profile.name or "?"))
         else
             ns.Print("|cFFFF0000Error:|r " .. (err or "No layouts for " .. classToken .. "."))
@@ -956,8 +1010,8 @@ local function CreateMainFrame()
         mainFrame.blizzScroll:SetPoint("TOPLEFT", mainFrame.centerCol, "TOPLEFT", 4, blizzY - 18)
         mainFrame.blizzScroll:SetPoint("BOTTOMRIGHT", mainFrame.centerCol, "BOTTOMRIGHT", -22, 0)
 
-        -- Left column: profile scroll fills available space (header + New btn + scroll)
-        local profScrollH = math.max(60, colHeight - 18 - 24 - 4)
+        -- Left column: profile scroll fills available space (header + scroll)
+        local profScrollH = math.max(60, colHeight - 18)
         mainFrame.profScroll:SetHeight(profScrollH)
     end
 
@@ -977,22 +1031,94 @@ local function RefreshProfileSection()
     local left = mainFrame.leftCol
 
     ReleasePool("profileRows")
+    ReleasePool("profSectionHeaders")
 
+    local presets = ns.GetPresetProfileList()
     local profiles = ns.GetGlobalProfileList()
     local activeUUID = ns.GetActiveGlobalProfileUUID()
-    local count = #profiles
 
-    left.header:SetText(COLOR_YELLOW .. "Profiles (" .. count .. ")|r")
+    left.header:SetText(COLOR_YELLOW .. "Profiles|r")
     left.countText:SetText(
         activeUUID and (COLOR_GREEN .. "Active set|r") or (COLOR_DIM .. "No active|r")
     )
 
-    if count == 0 then
-        mainFrame.profContent:SetHeight(20)
-        return
+    local yOff = 0
+
+    -- Presets section
+    if #presets > 0 then
+        local presetHdr = GetOrCreateFrame("profSectionHeaders", CreateClassGroupHeader, mainFrame.profContent)
+        presetHdr:SetPoint("TOPLEFT", 0, yOff)
+        presetHdr:SetPoint("TOPRIGHT", 0, yOff)
+        presetHdr.text:SetText(COLOR_ORANGE .. "Presets|r")
+        presetHdr.line:SetColorTexture(0.5, 0.38, 0.15, 0.6)
+        yOff = yOff - 20
+
+        for _, p in ipairs(presets) do
+            local row = GetOrCreateFrame("profileRows", CreateProfileListRow, mainFrame.profContent)
+            row:SetPoint("TOPLEFT", 0, yOff)
+            row:SetPoint("TOPRIGHT", 0, yOff)
+
+            local isSelected = (p.uuid == selectedProfileUUID)
+            row.isActive = false
+            row.isSelected = isSelected
+            row.isPreset = true
+
+            if isSelected then
+                row.marker:SetText(COLOR_ORANGE .. ">" .. "|r")
+                row.bg:SetColorTexture(0.25, 0.2, 0.12, 0.5)
+                row.nameText:SetTextColor(0.9, 0.8, 0.5)
+            else
+                row.marker:SetText("")
+                row.bg:SetColorTexture(0.18, 0.15, 0.12, 0.3)
+                row.nameText:SetTextColor(0.9, 0.8, 0.5)
+            end
+
+            row.nameText:SetText(p.name)
+            row.infoText:SetText(COLOR_DIM .. p.layoutCount .. "L " .. p.classCount .. "C|r")
+
+            -- Hide edit buttons for presets
+            row.renBtn:Hide()
+            row.delBtn:Hide()
+
+            local uuid = p.uuid
+            row:SetScript("OnMouseUp", function(self, button)
+                if button == "LeftButton" then
+                    selectedProfileUUID = uuid
+                    RefreshAll()
+                end
+            end)
+
+            -- Preset-specific hover colors
+            row:SetScript("OnEnter", function(self)
+                self.bg:SetColorTexture(0.25, 0.2, 0.12, 0.4)
+            end)
+            row:SetScript("OnLeave", function(self)
+                if self.isSelected then
+                    self.bg:SetColorTexture(0.25, 0.2, 0.12, 0.5)
+                else
+                    self.bg:SetColorTexture(0.18, 0.15, 0.12, 0.3)
+                end
+            end)
+
+            yOff = yOff - ROW_HEIGHT
+        end
     end
 
-    local yOff = 0
+    -- My Profiles section
+    local myHdr = GetOrCreateFrame("profSectionHeaders", CreateClassGroupHeader, mainFrame.profContent)
+    myHdr:SetPoint("TOPLEFT", 0, yOff)
+    myHdr:SetPoint("TOPRIGHT", 0, yOff)
+    myHdr.text:SetText(COLOR_YELLOW .. "My Profiles (" .. #profiles .. ")|r")
+    myHdr.line:SetColorTexture(0.4, 0.35, 0.1, 0.6)
+    yOff = yOff - 20
+
+    -- Position the "New" button inside scroll content
+    mainFrame.newBtn:SetParent(mainFrame.profContent)
+    mainFrame.newBtn:ClearAllPoints()
+    mainFrame.newBtn:SetPoint("TOPLEFT", 0, yOff)
+    mainFrame.newBtn:Show()
+    yOff = yOff - 24
+
     for _, p in ipairs(profiles) do
         local row = GetOrCreateFrame("profileRows", CreateProfileListRow, mainFrame.profContent)
         row:SetPoint("TOPLEFT", 0, yOff)
@@ -1002,8 +1128,9 @@ local function RefreshProfileSection()
         local isSelected = (p.uuid == selectedProfileUUID)
         row.isActive = isActive
         row.isSelected = isSelected
+        row.isPreset = false
 
-        if isActive then
+        if isActive and isSelected then
             row.marker:SetText(COLOR_GREEN .. ">" .. "|r")
             row.bg:SetColorTexture(0.15, 0.25, 0.35, 0.4)
             row.nameText:SetTextColor(0.3, 0.85, 1.0)
@@ -1011,6 +1138,10 @@ local function RefreshProfileSection()
             row.marker:SetText(COLOR_ORANGE .. ">" .. "|r")
             row.bg:SetColorTexture(0.25, 0.2, 0.35, 0.5)
             row.nameText:SetTextColor(0.9, 0.9, 0.9)
+        elseif isActive then
+            row.marker:SetText("")
+            row.bg:SetColorTexture(0.15, 0.25, 0.35, 0.4)
+            row.nameText:SetTextColor(0.3, 0.85, 1.0)
         else
             row.marker:SetText("")
             row.bg:SetColorTexture(0.15, 0.15, 0.25, 0.3)
@@ -1020,6 +1151,10 @@ local function RefreshProfileSection()
         row.nameText:SetText(p.name)
         row.infoText:SetText(COLOR_DIM .. p.layoutCount .. "L " .. p.classCount .. "C|r")
 
+        -- Show edit buttons (may have been hidden for preset rows)
+        row.renBtn:Show()
+        row.delBtn:Show()
+
         local uuid = p.uuid
         local pName = p.name
         row:SetScript("OnMouseUp", function(self, button)
@@ -1027,6 +1162,20 @@ local function RefreshProfileSection()
                 selectedProfileUUID = uuid
                 ns.SetActiveGlobalProfileUUID(uuid)
                 RefreshAll()
+            end
+        end)
+
+        -- Reset hover handlers for user profile rows
+        row:SetScript("OnEnter", function(self)
+            self.bg:SetColorTexture(0.2, 0.2, 0.35, 0.4)
+        end)
+        row:SetScript("OnLeave", function(self)
+            if self.isActive then
+                self.bg:SetColorTexture(0.15, 0.25, 0.35, 0.4)
+            elseif self.isSelected then
+                self.bg:SetColorTexture(0.25, 0.2, 0.35, 0.5)
+            else
+                self.bg:SetColorTexture(0.15, 0.15, 0.25, 0.3)
             end
         end)
 
@@ -1062,23 +1211,65 @@ local function RefreshProfileContents()
         center.profileNameText:SetText("")
         center.hint:Show()
         mainFrame.contContent:SetHeight(20)
+        mainFrame.syncBtn:Hide()
+        mainFrame.loadBtn:Hide()
+        mainFrame.copyProfileBtn:Hide()
+        mainFrame.websiteBtn:Hide()
         return
     end
 
     center.hint:Hide()
 
-    local profile = ns.GetGlobalProfile(selectedProfileUUID)
+    local isPreset = ns.IsPresetProfile(selectedProfileUUID)
+    local profile
+    if isPreset then
+        profile = ns.GetPresetProfile(selectedProfileUUID)
+    else
+        profile = ns.GetGlobalProfile(selectedProfileUUID)
+    end
     if not profile then
         center.header:SetText(COLOR_YELLOW .. "Profile Contents|r")
         center.profileNameText:SetText(COLOR_RED .. "Not found|r")
         mainFrame.contContent:SetHeight(20)
+        mainFrame.syncBtn:Hide()
+        mainFrame.loadBtn:Hide()
+        mainFrame.copyProfileBtn:Hide()
+        mainFrame.websiteBtn:Hide()
         return
     end
 
-    center.header:SetText(COLOR_YELLOW .. "Profile Contents|r")
-    center.profileNameText:SetText(COLOR_TITLE .. profile.name .. "|r")
+    if isPreset then
+        center.header:SetText(COLOR_ORANGE .. "Preset Contents|r")
+        center.profileNameText:SetText("|cFFE6CC80" .. profile.name .. "|r")
+        mainFrame.syncBtn:Hide()
+        mainFrame.copyProfileBtn:ClearAllPoints()
+        mainFrame.copyProfileBtn:SetPoint("LEFT", 0, 0)
+        mainFrame.copyProfileBtn:Show()
+        mainFrame.loadBtn:ClearAllPoints()
+        mainFrame.loadBtn:SetPoint("LEFT", mainFrame.copyProfileBtn, "RIGHT", 4, 0)
+        mainFrame.loadBtn:Show()
+        if profile.url then
+            mainFrame.websiteBtn:Show()
+        else
+            mainFrame.websiteBtn:Hide()
+        end
+    else
+        center.header:SetText(COLOR_YELLOW .. "Profile Contents|r")
+        center.profileNameText:SetText(COLOR_TITLE .. profile.name .. "|r")
+        mainFrame.syncBtn:Show()
+        mainFrame.loadBtn:ClearAllPoints()
+        mainFrame.loadBtn:SetPoint("LEFT", mainFrame.syncBtn, "RIGHT", 4, 0)
+        mainFrame.loadBtn:Show()
+        mainFrame.copyProfileBtn:Hide()
+        mainFrame.websiteBtn:Hide()
+    end
 
-    local layouts = ns.GetProfileLayouts(selectedProfileUUID)
+    local layouts
+    if isPreset then
+        layouts = ns.GetPresetLayouts(selectedProfileUUID)
+    else
+        layouts = ns.GetProfileLayouts(selectedProfileUUID)
+    end
 
     if #layouts == 0 then
         local emptyText = GetOrCreateFrame("contRows", function(parent)
@@ -1122,11 +1313,16 @@ local function RefreshProfileContents()
             row:SetPoint("TOPLEFT", 0, yOff)
             row:SetPoint("TOPRIGHT", 0, yOff)
 
-            -- Re-show buttons (may have been hidden when recycled as empty-text row)
-            if row.renameBtn then row.renameBtn:Show() end
+            -- Show/hide buttons based on preset vs user profile
             if row.expBtn then row.expBtn:Show() end
             if row.libBtn then row.libBtn:Show() end
-            if row.delBtn then row.delBtn:Show() end
+            if isPreset then
+                if row.renameBtn then row.renameBtn:Hide() end
+                if row.delBtn then row.delBtn:Hide() end
+            else
+                if row.renameBtn then row.renameBtn:Show() end
+                if row.delBtn then row.delBtn:Show() end
+            end
 
             row.nameText:SetText(layout.name)
             row.nameText:SetTextColor(0.9, 0.9, 0.9)
@@ -1136,19 +1332,21 @@ local function RefreshProfileContents()
             local pUUID = selectedProfileUUID
             local layoutName = layout.name
 
-            -- Rename button
-            row.renameBtn:SetScript("OnClick", function()
-                local dialog = StaticPopup_Show("CMP_RENAME_PROFILE_LAYOUT", layoutName)
-                if dialog then
-                    dialog.data = { profileUUID = pUUID, class = cls, index = idx, oldName = layoutName }
-                end
-            end)
-            row.renameBtn:SetScript("OnEnter", function(self)
-                GameTooltip:SetOwner(self, "ANCHOR_TOP")
-                GameTooltip:SetText("Rename Layout")
-                GameTooltip:Show()
-            end)
-            row.renameBtn:SetScript("OnLeave", GameTooltip_Hide)
+            -- Rename button (user profiles only)
+            if not isPreset then
+                row.renameBtn:SetScript("OnClick", function()
+                    local dialog = StaticPopup_Show("CMP_RENAME_PROFILE_LAYOUT", layoutName)
+                    if dialog then
+                        dialog.data = { profileUUID = pUUID, class = cls, index = idx, oldName = layoutName }
+                    end
+                end)
+                row.renameBtn:SetScript("OnEnter", function(self)
+                    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+                    GameTooltip:SetText("Rename Layout")
+                    GameTooltip:Show()
+                end)
+                row.renameBtn:SetScript("OnLeave", GameTooltip_Hide)
+            end
 
             -- Export button
             row.expBtn:SetScript("OnClick", function()
@@ -1171,13 +1369,22 @@ local function RefreshProfileContents()
             end)
             row.expBtn:SetScript("OnLeave", GameTooltip_Hide)
 
-            -- Save to Library button
-            row.libBtn:SetScript("OnClick", function()
-                local uuid, err = ns.SaveLayoutAsTemplate(pUUID, cls, idx)
-                if not uuid then
-                    ns.Print("|cFFFF0000Error:|r " .. (err or "unknown"))
-                end
-            end)
+            -- Save/Copy to Library button
+            if isPreset then
+                row.libBtn:SetScript("OnClick", function()
+                    local uuid, err = ns.CopyPresetLayoutToLibrary(pUUID, cls, idx)
+                    if not uuid then
+                        ns.Print("|cFFFF0000Error:|r " .. (err or "unknown"))
+                    end
+                end)
+            else
+                row.libBtn:SetScript("OnClick", function()
+                    local uuid, err = ns.SaveLayoutAsTemplate(pUUID, cls, idx)
+                    if not uuid then
+                        ns.Print("|cFFFF0000Error:|r " .. (err or "unknown"))
+                    end
+                end)
+            end
             row.libBtn:SetScript("OnEnter", function(self)
                 GameTooltip:SetOwner(self, "ANCHOR_TOP")
                 GameTooltip:SetText("Save to Library")
@@ -1186,19 +1393,21 @@ local function RefreshProfileContents()
             end)
             row.libBtn:SetScript("OnLeave", GameTooltip_Hide)
 
-            -- Remove button (no confirmation — data is recoverable from Library)
-            row.delBtn:SetScript("OnClick", function()
-                local ok, err = ns.RemoveLayoutFromProfile(pUUID, cls, idx)
-                if not ok then
-                    ns.Print("|cFFFF0000Error:|r " .. (err or "unknown"))
-                end
-            end)
-            row.delBtn:SetScript("OnEnter", function(self)
-                GameTooltip:SetOwner(self, "ANCHOR_TOP")
-                GameTooltip:SetText("Remove from Profile")
-                GameTooltip:Show()
-            end)
-            row.delBtn:SetScript("OnLeave", GameTooltip_Hide)
+            -- Remove button (user profiles only)
+            if not isPreset then
+                row.delBtn:SetScript("OnClick", function()
+                    local ok, err = ns.RemoveLayoutFromProfile(pUUID, cls, idx)
+                    if not ok then
+                        ns.Print("|cFFFF0000Error:|r " .. (err or "unknown"))
+                    end
+                end)
+                row.delBtn:SetScript("OnEnter", function(self)
+                    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+                    GameTooltip:SetText("Remove from Profile")
+                    GameTooltip:Show()
+                end)
+                row.delBtn:SetScript("OnLeave", GameTooltip_Hide)
+            end
 
             yOff = yOff - ROW_HEIGHT
         end
@@ -1404,9 +1613,15 @@ function ns.ToggleUI()
     if frame:IsShown() then
         frame:Hide()
     else
-        -- Auto-select the active global profile if none selected
+        -- Auto-select the active global profile if none selected, fallback to first preset
         if not selectedProfileUUID then
             selectedProfileUUID = ns.GetActiveGlobalProfileUUID()
+            if not selectedProfileUUID then
+                local presets = ns.GetPresetProfileList()
+                if #presets > 0 then
+                    selectedProfileUUID = presets[1].uuid
+                end
+            end
         end
         frame:Show()
         RefreshAll()

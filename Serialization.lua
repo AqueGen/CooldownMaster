@@ -213,6 +213,77 @@ function ns.ExportTemplate(uuid)
 end
 
 ---------------------------------------------------------------------------
+-- Export: Preset Profile (all classes)
+---------------------------------------------------------------------------
+
+function ns.ExportPresetProfile(presetId)
+    local preset = ns.presets[presetId]
+    if not preset then return nil, "Preset not found." end
+
+    local layoutCount = 0
+    local layoutsOut = {}
+    for classToken, classLayouts in pairs(preset.layouts) do
+        layoutsOut[classToken] = {}
+        for i, entry in ipairs(classLayouts) do
+            layoutsOut[classToken][i] = {
+                name = entry.name,
+                spec = entry.spec,
+                data = entry.data,
+            }
+            layoutCount = layoutCount + 1
+        end
+    end
+
+    if layoutCount == 0 then return nil, "Preset has no layouts." end
+
+    local payload = {
+        v = 2,
+        scope = "globalProfile",
+        name = preset.name,
+        description = preset.description,
+        layouts = layoutsOut,
+    }
+
+    local encoded = ns.Encode(payload)
+    if not encoded then return nil, "Failed to encode." end
+    return PREFIX_PROFILE .. encoded
+end
+
+---------------------------------------------------------------------------
+-- Export: Layouts for one class from a preset
+---------------------------------------------------------------------------
+
+function ns.ExportPresetClass(presetId, classToken)
+    local preset = ns.presets[presetId]
+    if not preset then return nil, "Preset not found." end
+    local classLayouts = preset.layouts[classToken]
+    if not classLayouts or #classLayouts == 0 then
+        return nil, "No layouts for " .. classToken .. "."
+    end
+
+    local layoutsOut = {}
+    for i, entry in ipairs(classLayouts) do
+        layoutsOut[i] = {
+            name = entry.name,
+            spec = entry.spec,
+            data = entry.data,
+        }
+    end
+
+    local payload = {
+        v = 2,
+        scope = "classLayouts",
+        class = classToken,
+        profileName = preset.name,
+        layouts = layoutsOut,
+    }
+
+    local encoded = ns.Encode(payload)
+    if not encoded then return nil, "Failed to encode." end
+    return PREFIX_CLASS .. encoded
+end
+
+---------------------------------------------------------------------------
 -- Import: Auto-detect format
 ---------------------------------------------------------------------------
 
