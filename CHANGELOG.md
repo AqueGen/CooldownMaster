@@ -9,8 +9,9 @@
 
 Keep layouts synchronized across characters sharing the same profile.
 
-- **Auto-Sync dropdown** in the bottom bar — pick one profile (user or preset) per character
+- **Auto-Sync dropdown** in the bottom bar — pick one profile (user or preset) to sync on login
+- Setting is **account-wide** — set it once, works on all characters
 - On first login (not `/reload`), compares the selected profile's class layouts with current Blizzard CDM layouts
-- If layouts differ, a WARNING popup offers **Apply & Reload** or **Skip**
+- If they differ, a WARNING popup offers **Apply & Reload** or **Skip**
 - Comparison is thorough: layout count → names → serialized data (order-independent)
 - Info button next to the dropdown explains how Auto-Sync works
