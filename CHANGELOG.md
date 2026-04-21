@@ -1,5 +1,5 @@
-## [2.1.4] - 2026-03-29
+## [2.1.5] - 2026-04-21
 
-### Fixed
+### Changed
 
-- Fixed Luxthos Frost Mage preset failing to load into Blizzard CDM (corrupted character in import string)
+- Added support for WoW patch 12.0.5 (Interface TOC updated to 120001, 120005)

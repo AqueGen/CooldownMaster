@@ -1,8 +1,8 @@
-## Interface: 120001
+## Interface: 120001, 120005
 ## Title: Cooldown Manager Profiles
 ## Notes: Save, switch and share layouts for Blizzard's Cooldown Manager.
 ## Author: AqueGen
-## Version: 2.1.4
+## Version: 2.1.5
 ## X-Curse-Project-ID: 1464144
 ## X-Wago-ID: EGPeA3N1
 ## SavedVariables: CooldownManagerProfilesDB, CooldownMasterDB
